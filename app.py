@@ -1,13 +1,12 @@
 import streamlit as st
 import FinanceDataReader as fdr
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# 차트 한글 깨짐 방지
-plt.rcParams['axes.unicode_minus'] = False
-
+# RSI 계산 함수
 def calculate_rsi(df, period=14):
     delta = df['Close'].diff()
     up, down = delta.copy(), delta.copy()
@@ -18,8 +17,7 @@ def calculate_rsi(df, period=14):
     RS = _gain / _loss
     return 100 - (100 / (1 + RS))
 
-# 🌟 무적의 하드코딩 리스트 (코스피 200 핵심 우량주 꽉꽉 채움!)
-# "종목명 (코드)" 형태로 만들어서 검색도 쉽고 동명이인 에러도 막습니다.
+# KOSPI 200 하드코딩 리스트 (이전과 동일)
 KOSPI_200 = {
     '삼성전자': '005930', 'SK하이닉스': '000660', 'LG에너지솔루션': '373220', '삼성바이오로직스': '207940',
     '현대차': '005380', '기아': '000270', '셀트리온': '068270', 'POSCO홀딩스': '005490',
@@ -51,20 +49,37 @@ KOSPI_200 = {
     '동원시스템즈': '014820', 'HD현대미포': '010620'
 }
 
-# ----------------- UI 시작 -----------------
-st.set_page_config(page_title="손선생 주식 분석", page_icon="📈")
-st.title("📈 손선생 주식 분석")
+st.set_page_config(page_title="손선생 주식 분석", page_icon="📈", layout="centered")
+
+# CSS를 이용해 제목이 무조건 한 줄로 나오도록 강제 설정
+st.markdown("""
+    <style>
+    .single-line-title {
+        white-space: nowrap;
+        font-size: 26px;
+        font-weight: bold;
+        letter-spacing: -1px;
+    }
+    .single-line-subtitle {
+        white-space: nowrap;
+        font-size: 20px;
+        font-weight: bold;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 한 줄로 출력되는 예쁜 메인 타이틀
+st.markdown('<div class="single-line-title">📈 손선생 주식 분석</div>', unsafe_allow_html=True)
 st.write("코스피 대표 우량주들의 매수/매도 타이밍을 분석합니다.")
 
-# 종목 선택 창 (이름을 검색하거나 클릭해서 선택)
-selected_name = st.selectbox("🔍 분석할 종목을 검색하세요:", list(KOSPI_200.keys()))
-
-# 선택한 종목의 실제 코드 추출
+# 종목 선택 창 (터치하고 글자를 치면 자동검색 됩니다!)
+selected_name = st.selectbox("🔍 분석할 종목을 검색하세요 (예: 현대):", list(KOSPI_200.keys()))
 selected_code = KOSPI_200[selected_name]
 
 if st.button("📊 AI 분석 시작"):
     with st.spinner(f'{selected_name} 데이터를 분석하는 중입니다...'):
-        # 1. 주가 데이터 가져오기 (야후/네이버에서 가져오므로 차단 안 당함!)
         start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         df = fdr.DataReader(selected_code, start_date)
         
@@ -90,43 +105,58 @@ if st.button("📊 AI 분석 시작"):
             col1, col2, col3 = st.columns(3)
             col1.metric("현재가", f"{last_close:,.0f}원")
             col2.metric("현재 RSI", f"{last_rsi:.1f}")
-            col3.metric("거래량 (5일평균 대비)", f"{vol_ratio:.1f}%")
+            col3.metric("거래량 (대비)", f"{vol_ratio:.1f}%")
 
             st.markdown("---")
-            st.subheader(f"💡 {selected_name} 매매 타이밍 분석")
+            
+            # 한 줄로 출력되는 서브 타이틀
+            st.markdown(f'<div class="single-line-subtitle">💡 {selected_name} 매매 타이밍 분석</div>', unsafe_allow_html=True)
 
             if last_cross == -2:
-                st.error("🚨 [확정 매도: 데드크로스] 10일선이 20일선을 하향 돌파했습니다! 추세가 꺾였으니 매도를 강력히 고려하세요.")
+                st.error("🚨 [확정 매도: 데드크로스] 10일선이 20일선을 하향 돌파했습니다! 매도를 강력히 고려하세요.")
             elif prev_close > prev_ma10 and last_close < last_ma10:
-                st.warning(f"🟡 [주의 매도: 10일선 이탈] 주가가 10일선({last_ma10:,.0f}원) 아래로 내려왔습니다. 수익 실현이나 손절을 준비하세요.")
+                st.warning(f"🟡 [주의 매도: 10일선 이탈] 주가가 10일선({last_ma10:,.0f}원) 아래로 내려왔습니다. 손절을 준비하세요.")
             elif last_rsi >= 75:
-                st.warning(f"🔥 [분할 매도: RSI 과열] RSI가 {last_rsi:.1f}로 과열권입니다. 욕심을 버리고 일부 익절하세요.")
+                st.warning(f"🔥 [분할 매도: RSI 과열] RSI가 {last_rsi:.1f}로 과열권입니다. 일부 익절하세요.")
             elif last_cross == 2:
                 if vol_ratio >= 200:
-                    st.success("🚀 [강력 매수: 골든크로스 + 거래량 폭발] 10일선 상향 돌파와 함께 거래량이 터졌습니다! 신뢰도가 매우 높습니다.")
+                    st.success("🚀 [강력 매수: 골든크로스 + 거래량 폭발] 10일선 상향 돌파와 거래량이 터졌습니다!")
                 else:
-                    st.success("✨ [신규 매수: 골든크로스] 10일선이 20일선을 뚫고 올라갔습니다. 상승 추세의 시작입니다.")
+                    st.success("✨ [신규 매수: 골든크로스] 10일선이 20일선을 뚫고 올라갔습니다. 상승 추세 시작입니다.")
             else:
                 st.info("✅ 현재 특별한 매수/매도 신호가 발생하지 않았습니다. 관망하세요.")
 
             st.markdown("---")
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [2, 1]})
             
-            ax1.plot(df.index[-60:], df['Close'].iloc[-60:], label='Price', color='gray', alpha=0.5)
-            ax1.plot(df.index[-60:], df['MA10'].iloc[-60:], label='MA10', color='red')
-            ax1.plot(df.index[-60:], df['MA20'].iloc[-60:], label='MA20', color='orange')
-            ax1.set_title(f'{selected_name} Stock Analysis')
-            ax1.legend(loc='upper left')
-            ax1.grid(True, alpha=0.3)
+            # 🌟 터치/확대/숫자 확인이 가능한 고급 Plotly 차트
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                                vertical_spacing=0.05, 
+                                row_heights=[0.7, 0.3])
+
+            # 상단: 주가 및 이동평균선
+            df_recent = df.iloc[-60:] # 최근 60일치만
             
-            colors = ['red' if df['Close'].iloc[i] >= df['Open'].iloc[i] else 'blue' for i in range(len(df)-60, len(df))]
-            ax2.bar(df.index[-60:], df['Volume'].iloc[-60:], color=colors, alpha=0.7)
-            ax2.axhline(avg_volume, color='green', linestyle='--', label='5-Day Avg Vol')
-            ax2.legend(loc='upper left')
-            ax2.grid(True, alpha=0.3)
+            fig.add_trace(go.Scatter(x=df_recent.index, y=df_recent['Close'], mode='lines', name='종가', line=dict(color='gray', width=2)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df_recent.index, y=df_recent['MA10'], mode='lines', name='10일선', line=dict(color='red', width=2)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df_recent.index, y=df_recent['MA20'], mode='lines', name='20일선', line=dict(color='orange', width=2)), row=1, col=1)
+
+            # 하단: 거래량 막대 (상승=빨강, 하락=파랑)
+            colors = ['#ff4d4d' if row['Close'] >= row['Open'] else '#4d79ff' for _, row in df_recent.iterrows()]
+            fig.add_trace(go.Bar(x=df_recent.index, y=df_recent['Volume'], name='거래량', marker_color=colors), row=2, col=1)
             
-            plt.tight_layout()
-            st.pyplot(fig)
+            # 5일 평균 거래량 점선 표시
+            fig.add_hline(y=avg_volume, line_dash="dash", line_color="green", row=2, col=1)
+
+            # 차트 레이아웃(디자인) 설정
+            fig.update_layout(
+                height=500, 
+                margin=dict(l=10, r=10, t=30, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                hovermode="x unified" # 🌟 손가락을 대면 모든 숫자가 한 번에 뜨는 마법의 옵션
+            )
+            
+            # 차트 출력
+            st.plotly_chart(fig, use_container_width=True)
             
         else:
             st.error("데이터를 불러오는 데 실패했습니다.")
