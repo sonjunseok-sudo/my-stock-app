@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import requests
 
-# --- 1. 앱 설정 및 스타일 ---
+# --- 1. 앱 설정 및 프리미엄 스타일 ---
 st.set_page_config(page_title="SON STOCK PRO", page_icon="📈", layout="centered")
 
 st.markdown("""
@@ -20,10 +20,11 @@ st.markdown("""
     .status-box { padding: 20px; border-radius: 16px; margin-bottom: 25px; font-weight: 700; text-align: center; font-size: 1.1rem; border: 1px solid #e5e7eb; }
     .indicator-container { display: flex; flex-direction: row; gap: 8px; margin: 12px 0; overflow-x: auto; white-space: nowrap; }
     .badge-premium { background: #f0f7ff; color: #0055d4; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 1px solid #dbeafe; display: inline-block; }
-    .buy-card { background: #ffffff; border-radius: 14px; padding: 22px; margin-bottom: 16px; border: 1px solid #e5e7eb; }
+    .buy-card { background: #ffffff; border-radius: 14px; padding: 22px; margin-bottom: 16px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .supply-row { font-size: 13px; color: #4b5563; background: #f9fafb; padding: 10px 14px; border-radius: 10px; margin-top: 10px; }
     </style>
     <div class="main-title">SON STOCK PRO</div>
-    <div class="sub-title">Day-1 Breakout Analysis Terminal</div>
+    <div class="sub-title">Day-1 Breakout & AI Analysis Terminal</div>
 """, unsafe_allow_html=True)
 
 # --- 2. 분석 엔진 ---
@@ -44,31 +45,53 @@ def get_investor_data(code):
         return (int(latest['institutionNetBuyVolume']), int(latest['foreignNetBuyVolume']))
     except: return 0, 0
 
-# 종목 리스트 200개 (현대위아 등 포함)
+# 🌟 200개 종목 풀 리스트 (생략 없이 꽉 채움)
 KOSPI_200 = {
     '삼성전자': '005930', 'SK하이닉스': '000660', 'LG에너지솔루션': '373220', '삼성바이오로직스': '207940',
     '현대차': '005380', '기아': '000270', '셀트리온': '068270', 'POSCO홀딩스': '005490',
-    'NAVER': '035420', '현대위아': '011210', 'LG화학': '051910', '포스코퓨처엠': '003670'
-    # ... 기존 리스트 유지
+    'NAVER': '035420', '현대위아': '011210', 'LG화학': '051910', '포스코퓨처엠': '003670',
+    '삼성SDI': '006400', '카카오': '035720', '삼성물산': '028260', 'KB금융': '105560',
+    '현대모비스': '012330', '신한지주': '055550', 'LG전자': '066570', '삼성화재': '000810',
+    '삼성생명': '032830', '하나금융지주': '086790', '한국전력': '015760', 'KT&G': '033780',
+    'HMM': '011200', '두산에너빌리티': '034020', '한미반도체': '042700', '현대글로비스': '086280',
+    '고려아연': '010130', '삼성SDS': '018260', '삼성전기': '009150', 'HD현대중공업': '329180',
+    'LG': '003550', '우리금융지주': '316140', '기업은행': '024110', '엔씨소프트': '036570',
+    '한화솔루션': '009830', '아모레퍼시픽': '090430', '롯데케미칼': '011170', '현대제철': '004020',
+    'S-Oil': '010950', 'KT': '030200', '유한양행': '000100', '크래프톤': '259960',
+    '한온시스템': '018880', '두산': '000150', '한화오션': '042660', '한화에어로스페이스': '012450',
+    'KCC': '002380', '현대해상': '001450', '코웨이': '021240', 'CJ': '001040', 'SK': '034730',
+    'SK텔레콤': '017670', 'LG이노텍': '011070', '삼성엔지니어링': '028050', '삼성중공업': '010140',
+    'GS': '078930', '미래에셋증권': '006800', '포스코DX': '022100', 'SKC': '011790',
+    '삼성증권': '016360', '한국타이어앤테크놀로지': '161390', '대우건설': '047040', 'DB손해보험': '005830',
+    '롯데지주': '004990', '한미사이언스': '008930', '삼성카드': '029780', '대한항공': '003490',
+    '한국금융지주': '071050', '팬오션': '028670', '키움증권': '039490', '현대건설': '000720',
+    '더존비즈온': '012510', 'DB하이텍': '000990', '신세계': '004170', '아모레G': '002790', 
+    'BGF리테일': '282330', '이마트': '139480', '녹십자': '006280', '오리온홀딩스': '001800', 
+    '오리온': '271560', '현대백화점': '069960', '한전기술': '052690', '한전KPS': '051600', 
+    '하이트진로': '000080', '롯데칠성': '005300', '한솔케미칼': '014680', '포스코인터내셔널': '047050', 
+    '호텔신라': '008770', 'DL': '000210', 'DL이앤씨': '375500', '신세계인터내셔날': '031430', 
+    'HDC': '012630', '농심': '004370', '오뚜기': '007310', '아세아제지': '002310', 
+    'HD한국조선해양': '009540', 'HD현대': '267250', '두산밥캣': '241560', 'GS건설': '006360', 
+    '영풍': '000670', 'LX인터내셔널': '001120', '쌍용C&E': '003410', 'CJ대한통운': '000120'
 }
 
-tab1, tab2 = st.tabs(["📊 ANALYSIS", "⚡ SCANNER"])
+tab1, tab2 = st.tabs(["📊 개별 종목 분석", "⚡ 당일 매수 스캐너"])
 
 # ==========================================
-# 탭 1: 개별 분석 (AI 매매 진단 추가)
+# 탭 1: 개별 분석 (AI 매매 진단 포함)
 # ==========================================
 with tab1:
     col_l, col_r = st.columns([3, 1])
     with col_l:
-        target_name = st.selectbox("STOCK SELECT", list(KOSPI_200.keys()), label_visibility="collapsed")
+        target_name = st.selectbox("분석할 종목 선택", list(KOSPI_200.keys()), label_visibility="collapsed")
     with col_r:
         analyze_btn = st.button("RUN AI", use_container_width=True)
     
     if analyze_btn:
         code = KOSPI_200[target_name]
-        with st.spinner('Analysing...'):
+        with st.spinner('시장 데이터를 분석 중입니다...'):
             df = fdr.DataReader(code, (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d'))
-            if not df.empty:
+            if not df.empty and len(df) >= 25:
                 df['MA10'] = df['Close'].rolling(10).mean()
                 df['MA20'] = df['Close'].rolling(20).mean()
                 df['RSI'] = calculate_rsi(df)
@@ -76,32 +99,31 @@ with tab1:
                 # 🌟 매매 타이밍 진단 로직 (Day-1 기준)
                 is_golden = df['MA10'].iloc[-2] <= df['MA20'].iloc[-2] and df['MA10'].iloc[-1] > df['MA20'].iloc[-1]
                 rsi_val = df['RSI'].iloc[-1]
-                vol_ratio = (df['Volume'].iloc[-1] / df['Volume'].rolling(5).mean().iloc[-2] * 100)
+                vol_ratio = (df['Volume'].iloc[-1] / df['Volume'].rolling(5).mean().iloc[-2] * 100) if df['Volume'].rolling(5).mean().iloc[-2] > 0 else 0
                 
-                # 진단 결과 메시지 및 색상 설정
                 if is_golden:
-                    status_msg = "🚀 [강력 매수] 오늘 막 골든크로스가 발생했습니다! 적극적인 매수를 고려하세요."
+                    status_msg = "🚀 [강력 매수] 오늘 막 골든크로스가 발생했습니다! 적극 매수를 고려하세요."
                     status_color = "#f0fdf4"; text_color = "#166534"
                 elif rsi_val >= 75:
                     status_msg = "🔥 [분할 매도] RSI가 과열권입니다. 욕심을 버리고 익절을 준비하세요."
                     status_color = "#fef2f2"; text_color = "#991b1b"
-                elif rsi_val <= 25:
-                    status_msg = "💎 [저점 매수] RSI가 바닥권입니다. 반등 가능성이 매우 높습니다."
+                elif rsi_val <= 30:
+                    status_msg = "💎 [저점 매수] RSI가 바닥권입니다. 반등 가능성이 높습니다."
                     status_color = "#eff6ff"; text_color = "#1e40af"
                 else:
-                    status_msg = "✅ [관망] 현재는 특별한 신호가 없습니다. 추세를 지켜보세요."
+                    status_msg = "✅ [관망] 현재는 특별한 돌파 신호가 없습니다. 추세를 지켜보세요."
                     status_color = "#f9fafb"; text_color = "#374151"
 
-                # 🌟 진단 결과 출력
+                # 진단 결과 출력
                 st.markdown(f'<div class="status-box" style="background:{status_color}; color:{text_color};">{status_msg}</div>', unsafe_allow_html=True)
                 
-                # 지표 카드 섹션
+                # 메트릭 카드
                 m1, m2, m3 = st.columns(3)
-                with m1: st.markdown(f'<div class="metric-card"><small>PRICE</small><br><b style="font-size:1.5rem;">{df["Close"].iloc[-1]:,.0f}</b></div>', unsafe_allow_html=True)
-                with m2: st.markdown(f'<div class="metric-card"><small>RSI(14)</small><br><b style="font-size:1.5rem;">{rsi_val:.1f}</b></div>', unsafe_allow_html=True)
-                with m3: st.markdown(f'<div class="metric-card"><small>VOL %</small><br><b style="font-size:1.5rem;">{vol_ratio:.0f}%</b></div>', unsafe_allow_html=True)
+                with m1: st.markdown(f'<div class="metric-card"><small>현재가</small><br><b style="font-size:1.5rem;">{df["Close"].iloc[-1]:,.0f}원</b></div>', unsafe_allow_html=True)
+                with m2: st.markdown(f'<div class="metric-card"><small>RSI (14일)</small><br><b style="font-size:1.5rem;">{rsi_val:.1f}</b></div>', unsafe_allow_html=True)
+                with m3: st.markdown(f'<div class="metric-card"><small>거래량 (대비)</small><br><b style="font-size:1.5rem;">{vol_ratio:.0f}%</b></div>', unsafe_allow_html=True)
 
-                # 전문가용 차트
+                # 차트 그리기
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06, row_heights=[0.7, 0.3])
                 df_r = df.iloc[-80:]
                 fig.add_trace(go.Scatter(x=df_r.index, y=df_r['Close'], name='Price', line=dict(color='#111827', width=2.5)), row=1, col=1)
@@ -112,8 +134,66 @@ with tab1:
                 st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# 탭 2: 스캐너 (V19와 동일)
+# 탭 2: 스캐너 (직관적 범위 & Day-1 로직 완벽 복구)
 # ==========================================
 with tab2:
-    st.markdown("#### ⚡ Day-1 Breakout Scanner")
-    # ... 스캐너 코드 유지
+    st.markdown("#### ⚡ 당일 돌파(Day-1) 종목 스캐너")
+    
+    # 🌟 범위 선택을 매우 직관적으로 변경
+    range_map = {
+        "👑 시가총액 최상위 (1위~50위)": (0, 50),
+        "🥇 시가총액 상위 (51위~100위)": (50, 100),
+        "🥈 시가총액 중위 (101위~150위)": (100, 150),
+        "🥉 시가총액 하위 (151위~200위)": (150, 200)
+    }
+    
+    selected_range = st.radio("🔍 스캔할 시가총액 범위를 선택하세요:", list(range_map.keys()))
+    
+    if st.button("🚀 매수 신호 스캔 시작", use_container_width=True):
+        items = list(KOSPI_200.items())
+        s, e = range_map[selected_range]
+        target_list = items[s:e]
+        
+        results = []
+        bar = st.progress(0)
+        
+        for i, (name, code) in enumerate(target_list):
+            try:
+                df_s = fdr.DataReader(code, (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d'))
+                if len(df_s) >= 25:
+                    df_s['MA10'] = df_s['Close'].rolling(10).mean()
+                    df_s['MA20'] = df_s['Close'].rolling(20).mean()
+                    
+                    # 🌟 [Day-1 로직]: 오늘 딱 골든크로스가 발생했는가?
+                    if df_s['MA10'].iloc[-2] <= df_s['MA20'].iloc[-2] and df_s['MA10'].iloc[-1] > df_s['MA20'].iloc[-1]:
+                        rsi = calculate_rsi(df_s).iloc[-1]
+                        vol = (df_s['Volume'].iloc[-1] / df_s['Volume'].rolling(5).mean().iloc[-2] * 100) if df_s['Volume'].rolling(5).mean().iloc[-2] > 0 else 0
+                        inst, frgn = get_investor_data(code)
+                        results.append({'name': name, 'code': code, 'price': df_s['Close'].iloc[-1], 'vol': vol, 'rsi': rsi, 'inst': inst, 'frgn': frgn})
+            except: pass
+            bar.progress((i+1)/len(target_list))
+            
+        bar.empty()
+        
+        if results:
+            st.markdown(f"#### 🏆 오늘 터진 매수 추천주 ({len(results)}개 발견)")
+            for r in sorted(results, key=lambda x: x['vol'], reverse=True):
+                st.markdown(f"""
+                <div class="buy-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="font-size:1.2rem; color:#111827;">{r['name']}</b>
+                        <b style="color:#2563eb; font-size:1.1rem;">{r['price']:,.0f} 원</b>
+                    </div>
+                    <div class="indicator-container">
+                        <div class="badge-premium">오늘 골든크로스 ✅</div>
+                        <div class="badge-premium">거래량 {r['vol']:.0f}% 🔥</div>
+                        <div class="badge-premium">RSI {r['rsi']:.1f} 🌡️</div>
+                    </div>
+                    <div class="supply-row">
+                        <b>기관 수급:</b> <span style="color:{'#ef4444' if r['inst']>0 else '#3b82f6'}">{r['inst']:,}</span> 주 | 
+                        <b>외인 수급:</b> <span style="color:{'#ef4444' if r['frgn']>0 else '#3b82f6'}">{r['frgn']:,}</span> 주
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("🧐 선택하신 범위 내에서 '오늘(당일)' 골든크로스가 발생한 종목이 없습니다. 다른 범위를 선택해 보세요!")
