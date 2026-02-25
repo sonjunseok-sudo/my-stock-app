@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# 차트 한글 깨짐 방지용 설정
+# 차트 한글 깨짐 방지
 plt.rcParams['axes.unicode_minus'] = False
 
 # RSI 계산 함수
@@ -19,14 +19,19 @@ def calculate_rsi(df, period=14):
     RS = _gain / _loss
     return 100 - (100 / (1 + RS))
 
-# 🌟 핵심 기술: 코스피 전 종목 리스트 불러오기 (앱이 느려지지 않게 기억해둠)
+# 🌟 우회 기술: 상장공시시스템(KIND)에서 직접 종목 리스트 가져오기
 @st.cache_data
 def get_kospi_list():
-    df = fdr.StockListing('KOSPI')
+    # 해외 서버(스트림릿) 차단을 막기 위해 KIND 엑셀 데이터를 직접 읽습니다.
+    url = 'http://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13'
+    df = pd.read_html(url, header=0)[0]
+    
+    # 종목코드(예: 5930)를 6자리 문자열(005930)로 깔끔하게 맞춥니다.
+    df['종목코드'] = df['종목코드'].map('{:06d}'.format)
+    
     stock_dict = {}
-    # "삼성전자 (005930)" 형태로 검색하기 좋게 만듭니다.
     for idx, row in df.iterrows():
-        stock_dict[f"{row['Name']} ({row['Code']})"] = row['Code']
+        stock_dict[f"{row['회사명']} ({row['종목코드']})"] = row['종목코드']
     return stock_dict
 
 # ----------------- UI 시작 -----------------
@@ -81,7 +86,7 @@ if st.button("📊 AI 분석 시작"):
             st.markdown("---")
             st.subheader(f"💡 {selected_name} 매매 타이밍 분석")
 
-            # 6. 매수/매도 로직 판단 및 출력
+            # 6. 매수/매도 판단
             if last_cross == -2:
                 st.error("🚨 [확정 매도: 데드크로스] 10일선이 20일선을 하향 돌파했습니다! 추세가 꺾였으니 매도를 강력히 고려하세요.")
             elif prev_close > prev_ma10 and last_close < last_ma10:
