@@ -1,33 +1,44 @@
 import streamlit as st
 import FinanceDataReader as fdr
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 
-# 앱의 제목과 설명
-st.title("📈 나만의 주식 AI 대시보드")
-st.write("텔레그램 알림 봇을 넘어, 직접 화면에서 차트를 봅니다!")
+# 스트림릿 클라우드(리눅스) 환경에서 한글 깨짐 방지를 위해 차트 폰트는 기본으로 둡니다.
+plt.rcParams['axes.unicode_minus'] = False
 
-# 종목 리스트 
+# RSI 계산 함수
+def calculate_rsi(df, period=14):
+    delta = df['Close'].diff()
+    up, down = delta.copy(), delta.copy()
+    up[up < 0] = 0
+    down[down > 0] = 0
+    _gain = up.ewm(com=(period - 1), min_periods=period).mean()
+    _loss = down.abs().ewm(com=(period - 1), min_periods=period).mean()
+    RS = _gain / _loss
+    return 100 - (100 / (1 + RS))
+
+# UI 시작
+st.set_page_config(page_title="주식 AI 비서", page_icon="🤖")
+st.title("🤖 나만의 주식 AI 비서")
+st.write("종목을 선택하면 현재 매수/매도 타이밍인지 분석해 줍니다.")
+
+# 타겟 종목 리스트 (텔레그램에서 쓰던 25개 종목)
 TARGET_STOCKS = {
-    '005930': '삼성전자', 
-    '000660': 'SK하이닉스', 
-    '035420': 'NAVER'
+    '005930': '삼성전자', '000660': 'SK하이닉스', '035420': 'NAVER',
+    '005380': '현대차', '086280': '현대글로비스', '012330': '현대모비스',
+    '000270': '기아', '042700': '한미반도체', '006400': '삼성SDI',
+    '002380': 'KCC', '015760': '한국전력', '012450': '한화에어로스페이스',
+    '034020': '두산에너빌리티', '105560': 'KB금융', '373220': 'LG에너지솔루션',
+    '329180': 'HD현대중공업', '042660': '한화오션', '018880': '한온시스템',
+    '000150': '두산', '055550': '신한지주', '066570': 'LG전자', 
+    '003550': 'LG', '032830': '삼성생명', '000810': '삼성화재', '033780': 'KT&G'
 }
 
-# 콤보박스(선택창) 만들기
-selected_name = st.selectbox("분석할 종목을 선택하세요:", list(TARGET_STOCKS.values()))
-
-# 선택한 종목의 코드 찾기
+# 종목 선택 창
+selected_name = st.selectbox("🔍 분석할 종목을 선택하세요:", list(TARGET_STOCKS.values()))
 selected_code = [code for code, name in TARGET_STOCKS.items() if name == selected_name][0]
 
-# 버튼 만들기
-if st.button("📊 차트 불러오기"):
-    st.info(f"{selected_name} 데이터를 가져오는 중입니다...")
-    
-    # 데이터 가져오기 (최근 6개월)
-    start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
-    df = fdr.DataReader(selected_code, start_date)
-    
-    # 🌟 놀라운 점: 파이썬 코드 한 줄이면 인터랙티브 차트가 예쁘게 그려집니다!
-    st.line_chart(df['Close'])
-    
-    st.success("분석 완료! 화면을 터치해서 가격을 확인해 보세요.")
+if st.button("📊 AI 분석 시작"):
+    with st.spinner(f'{selected_
