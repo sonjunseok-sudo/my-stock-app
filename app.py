@@ -43,3 +43,4 @@ selected_code = [code for code, name in TARGET_STOCKS.items() if name == selecte
 if st.button("📊 AI 분석 시작"):
     with st.spinner(f'{selected_name} 데이터를 불러오고 분석하는 중입니다...'):
 
+
