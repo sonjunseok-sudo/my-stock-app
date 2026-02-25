@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# 스트림릿 클라우드(리눅스) 환경에서 한글 깨짐 방지를 위해 차트 폰트는 기본으로 둡니다.
+# 차트 한글 깨짐 방지용 설정
 plt.rcParams['axes.unicode_minus'] = False
 
 # RSI 계산 함수
@@ -19,26 +19,30 @@ def calculate_rsi(df, period=14):
     RS = _gain / _loss
     return 100 - (100 / (1 + RS))
 
-# UI 시작
-st.set_page_config(page_title="주식 AI 비서", page_icon="🤖")
-st.title("🤖 나만의 주식 AI 비서")
-st.write("종목을 선택하면 현재 매수/매도 타이밍인지 분석해 줍니다.")
+# 🌟 핵심 기술: 코스피 전 종목 리스트 불러오기 (앱이 느려지지 않게 기억해둠)
+@st.cache_data
+def get_kospi_list():
+    df = fdr.StockListing('KOSPI')
+    stock_dict = {}
+    # "삼성전자 (005930)" 형태로 검색하기 좋게 만듭니다.
+    for idx, row in df.iterrows():
+        stock_dict[f"{row['Name']} ({row['Code']})"] = row['Code']
+    return stock_dict
 
-# 타겟 종목 리스트 (텔레그램에서 쓰던 25개 종목)
-TARGET_STOCKS = {
-    '005930': '삼성전자', '000660': 'SK하이닉스', '035420': 'NAVER',
-    '005380': '현대차', '086280': '현대글로비스', '012330': '현대모비스',
-    '000270': '기아', '042700': '한미반도체', '006400': '삼성SDI',
-    '002380': 'KCC', '015760': '한국전력', '012450': '한화에어로스페이스',
-    '034020': '두산에너빌리티', '105560': 'KB금융', '373220': 'LG에너지솔루션',
-    '329180': 'HD현대중공업', '042660': '한화오션', '018880': '한온시스템',
-    '000150': '두산', '055550': '신한지주', '066570': 'LG전자', 
-    '003550': 'LG', '032830': '삼성생명', '000810': '삼성화재', '033780': 'KT&G'
-}
+# ----------------- UI 시작 -----------------
+st.set_page_config(page_title="손선생 주식 분석", page_icon="📈")
+st.title("📈 손선생 주식 분석")
+st.write("코스피(KOSPI) 전 종목의 매수/매도 타이밍을 분석합니다.")
 
-# 종목 선택 창
-selected_name = st.selectbox("🔍 분석할 종목을 선택하세요:", list(TARGET_STOCKS.values()))
-selected_code = [code for code, name in TARGET_STOCKS.items() if name == selected_name][0]
+# 코스피 종목 리스트 가져오기
+stock_dict = get_kospi_list()
+
+# 종목 선택 창 (글자를 치면 자동검색 됩니다!)
+selected_display = st.selectbox("🔍 분석할 종목의 이름을 검색하거나 선택하세요:", list(stock_dict.keys()))
+
+# 선택한 종목의 이름과 코드 분리하기
+selected_code = stock_dict[selected_display]
+selected_name = selected_display.split(" (")[0]
 
 if st.button("📊 AI 분석 시작"):
     with st.spinner(f'{selected_name} 데이터를 불러오고 분석하는 중입니다...'):
@@ -68,14 +72,14 @@ if st.button("📊 AI 분석 시작"):
             df['Signal'] = df['Position'].diff()
             last_cross = df['Signal'].iloc[-1]
 
-            # 5. 대시보드 요약 정보 표시 (Metrics)
+            # 5. 대시보드 요약 정보 표시
             col1, col2, col3 = st.columns(3)
             col1.metric("현재가", f"{last_close:,.0f}원")
             col2.metric("현재 RSI", f"{last_rsi:.1f}")
             col3.metric("거래량 (5일평균 대비)", f"{vol_ratio:.1f}%")
 
             st.markdown("---")
-            st.subheader("💡 AI 매매 타이밍 분석")
+            st.subheader(f"💡 {selected_name} 매매 타이밍 분석")
 
             # 6. 매수/매도 로직 판단 및 출력
             if last_cross == -2:
@@ -92,11 +96,11 @@ if st.button("📊 AI 분석 시작"):
             else:
                 st.info("✅ 현재 특별한 매수/매도 신호가 발생하지 않았습니다. 관망하세요.")
 
-            # 7. 2단 차트 그리기 (텔레그램과 동일)
+            # 7. 2단 차트 그리기
             st.markdown("---")
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [2, 1]})
             
-            # 상단: 주가 차트 (영어 제목으로 한글 깨짐 방지)
+            # 상단: 주가 차트
             ax1.plot(df.index[-60:], df['Close'].iloc[-60:], label='Price', color='gray', alpha=0.5)
             ax1.plot(df.index[-60:], df['MA10'].iloc[-60:], label='MA10', color='red')
             ax1.plot(df.index[-60:], df['MA20'].iloc[-60:], label='MA20', color='orange')
@@ -112,8 +116,6 @@ if st.button("📊 AI 분석 시작"):
             ax2.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            
-            # 차트를 웹 화면에 출력!
             st.pyplot(fig)
             
         else:
