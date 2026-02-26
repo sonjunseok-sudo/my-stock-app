@@ -233,8 +233,17 @@ with tab2:
                     df_s['MA10'] = df_s['Close'].rolling(10).mean()
                     df_s['MA20'] = df_s['Close'].rolling(20).mean()
                     
-                    # [Day-1 로직]: 오늘 막 뚫고 올라온 종목만!
-                    if df_s['MA10'].iloc[-2] <= df_s['MA20'].iloc[-2] and df_s['MA10'].iloc[-1] > df_s['MA20'].iloc[-1]:
+                   # 1. 수학적 Day-1 골든크로스 확인
+                    is_cross = df_s['MA10'].iloc[-2] <= df_s['MA20'].iloc[-2] and df_s['MA10'].iloc[-1] > df_s['MA20'].iloc[-1]
+                    
+                    # 2. 주가 위치 확인: 현재 주가가 10일선과 20일선 위에 확실히 있는가? (음봉으로 파고드는 하락 방지)
+                    is_above_ma = df_s['Close'].iloc[-1] > df_s['MA10'].iloc[-1] and df_s['Close'].iloc[-1] > df_s['MA20'].iloc[-1]
+                    
+                    # 3. 실질 하락장 방지: 어제보다 올랐거나, 최소한 오늘 시가보다는 높은 양봉인가?
+                    is_not_falling = df_s['Close'].iloc[-1] >= df_s['Close'].iloc[-2] or df_s['Close'].iloc[-1] >= df_s['Open'].iloc[-1]
+                    
+                    # 이 3가지 깐깐한 조건을 모두 통과한 '진짜 상승' 종목만 리스트에 추가!
+                    if is_cross and is_above_ma and is_not_falling:
                         rsi = calculate_rsi(df_s).iloc[-1]
                         vol = (df_s['Volume'].iloc[-1] / df_s['Volume'].rolling(5).mean().iloc[-2] * 100) if df_s['Volume'].rolling(5).mean().iloc[-2] > 0 else 0
                         inst, frgn = get_investor_data(code)
@@ -266,6 +275,7 @@ with tab2:
                 """, unsafe_allow_html=True)
         else:
             st.info("🧐 선택하신 범위 내에서 '오늘(당일)' 골든크로스가 발생한 종목이 없습니다.")
+
 
 
 
